@@ -1,0 +1,45 @@
+FROM quay.io/centos/centos:stream9
+ 
+# 一次性安装所有工具，但优化层大小
+RUN dnf -y update && \
+    dnf -y install epel-release && \
+    dnf config-manager --set-enabled crb && \
+    dnf -y install \
+    # eBPF 开发工具
+    libbpf-devel \
+    make \
+    clang \
+    llvm \
+    elfutils-libelf-devel \
+    bpftool \
+    bpftrace \
+    bcc-tools \
+    bcc-devel \
+    kernel-headers \
+    kernel-devel \
+    # 开发工具
+    git \
+    vim \
+    && dnf clean all && \
+    rm -rf /var/cache/dnf/* /tmp/* /var/tmp/*
+ 
+# 构建和安装最新 libbpf
+RUN git clone https://github.com/libbpf/libbpf.git /tmp/libbpf && \
+    cd /tmp/libbpf/src && \
+    make && make install && \
+    rm -rf /tmp/libbpf
+ 
+WORKDIR /workspace
+ 
+# 克隆代码库
+RUN git clone https://github.com/libbpf/libbpf.git
+ 
+VOLUME ["/workspace/projects"]
+CMD ["/bin/bash"]
+
+# 若运行容器时，缺少 crt.o 库
+# dnf groupinstall "Development Tools"
+# dnf install glibc-devel
+
+# 后续开发需要的工具
+# dnf install bpftrace

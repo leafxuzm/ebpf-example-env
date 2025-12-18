@@ -10,6 +10,7 @@ struct {
 // 2. 定义你想传给用户态的数据结构
 struct event {
     int pid;
+    __u32 uid;
     char comm[16];
     char filename[128];
 };
@@ -27,6 +28,7 @@ int tracepoint__syscalls__sys_enter_execve(struct trace_event_raw_sys_enter *ctx
 
     // 4. 填充数据
     e->pid = bpf_get_current_pid_tgid() >> 32;
+    e->uid = (__u32)(bpf_get_current_uid_gid() & 0xffffffff);
     bpf_get_current_comm(&e->comm, sizeof(e->comm));
     bpf_probe_read_user_str(&e->filename, sizeof(e->filename), (const char *)ctx->args[0]);
 

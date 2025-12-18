@@ -1,0 +1,37 @@
+#!/usr/bin/env bpftrace
+// 本脚本监控指定 PID 通过 libc 的 dlopen 动态加载的库
+// 用法：sudo bpftrace linked_libs_by_pid.bt <pid>
+// 数据结构：
+//   @dlopen_name[tid]  临时保存每个线程传入的库名
+//   @libs               记录已通过 dlopen 加载的库集合
+
+BEGIN
+{
+  if ($1 == 0) {
+    printf("usage: linked_libs_by_pid.bt <pid>\n");
+    exit();
+  }
+  printf("monitoring pid=%d linked libraries via dlopen/dlclose\n", $1);
+}
+
+// 在调用 dlopen 入口处获取库名（arg0），按线程暂存
+uprobe:libc:dlopen /pid == $1/
+{
+  @dlopen_name[tid] = str(arg0);
+}
+
+// 在 dlopen 返回处读取库名并记录到集合，同时打印事件信息
+uretprobe:libc:dlopen /pid == $1/
+{
+  $name = @dlopen_name[tid];
+  delete(@dlopen_name[tid]);
+  printf("%s(%d uid=%d) dlopen: %s -> %p\n", comm, pid, uid, $name, retval);
+  @libs[$name] = 1;
+}
+
+// 每 5 秒打印当前记录的库集合（仅“打开”事件的累积）
+interval:s:5
+{
+  printf("current linked libs for pid=%d\n", $1);
+  print(@libs);
+}

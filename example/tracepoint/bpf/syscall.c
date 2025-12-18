@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <pwd.h>
 #include <signal.h>
 #include <sys/resource.h>
 #include <pthread.h> // 引入多线程库
@@ -15,6 +16,7 @@
 // 事件结构体 (与 BPF 程序保持一致)
 struct event {
     int pid;
+    int uid;
     char comm[16];
     char filename[128];
 };
@@ -129,8 +131,10 @@ void *worker_thread_func(void *arg) {
         // 如果取到了数据，处理它
         if (e) {
             // --- 这里是耗时操作 (打印、写文件、发邮件) ---
-            printf("[Worker] Process PID: %d, Comm: %s, Exec: %s\n", 
-                   e->pid, e->comm, e->filename);
+            struct passwd *pw = getpwuid(e->uid);
+            const char *user = pw ? pw->pw_name : "unknown";
+            printf("[Worker] User: %s(%d), PID: %d, Comm: %s, Exec: %s\n",
+                   user, e->uid, e->pid, e->comm, e->filename);
             
             // 处理完必须释放内存！因为是 handle_event 里 malloc 的
             free(e); 

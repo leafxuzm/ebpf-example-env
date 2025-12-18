@@ -1,0 +1,9 @@
+#!/usr/bin/env bpftrace
+
+tracepoint:syscalls:sys_* { @h[probe] = hist(nsecs); }
+
+interval:s:5
+{
+  print(@h);
+  clear(@h);
+}
